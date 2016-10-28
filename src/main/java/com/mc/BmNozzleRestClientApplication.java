@@ -17,6 +17,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.netflix.feign.EnableFeignClients;
 import org.springframework.context.annotation.Bean;
+import org.springframework.util.Assert;
 
 import com.mc.util.SSLValidationDisabler;
 
@@ -41,6 +42,14 @@ public class BmNozzleRestClientApplication {
 	}
 	
 	@Bean
+	public BmNozzleRestAPIClient bmNozzleApi(BmNozzleTokenClient tokenClient){
+		Assert.notNull(tokenClient);
+		return Feign.builder()
+				.requestInterceptor(tokenSettingInterceptor(tokenClient))
+				.target(BmNozzleRestAPIClient.class, bmNozzleConfigurationProperties.getHost());
+	}
+	
+	@Bean
 	public BmNozzleTokenClient bmNozzleTokenClient(){
 		
 		SSLValidationDisabler.dontDoThisAtHome();
@@ -60,6 +69,17 @@ public class BmNozzleRestClientApplication {
     			.requestInterceptor(usernamePasswordHeaderInterceptor())
     			.target(BmNozzleTokenClient.class, bmNozzleConfigurationProperties.getHost());
     }
+	
+	@Bean
+	public RequestInterceptor tokenSettingInterceptor(BmNozzleTokenClient tokenClient) {
+		return new RequestInterceptor() {
+			
+			@Override
+			public void apply(RequestTemplate template) {
+				template.header("token", tokenClient.getToken());
+			}
+		};
+	}
 	
     @Bean
 	public RequestInterceptor usernamePasswordHeaderInterceptor() {
